@@ -38,6 +38,8 @@
 
   (dataset-series-uri* [this api-params])
 
+  (release-uri-base [this series-slug])
+
   (dataset-release-uri [this ^URI series-uri release-slug])
 
   (dataset-release-uri* [this api-params])
@@ -64,6 +66,9 @@
 
     (dataset-series-uri* [this {:keys [series-slug] :as _api-params}]
       (dataset-series-uri this series-slug))
+
+    (release-uri-base [_ series-slug]
+      (str "/data/" series-slug "/release/"))
 
     (dataset-release-uri [_ series-uri release-slug]
       (URI. (format "%s/release/%s" series-uri release-slug)))

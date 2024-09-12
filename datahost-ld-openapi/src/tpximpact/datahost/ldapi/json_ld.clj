@@ -5,7 +5,8 @@
            (com.apicatalog.jsonld.document JsonDocument)
            (java.io StringReader)))
 
-(defn context [system-uris]
+(defn context 
+  ([system-uris] 
   ;; Serve the context file with an application/json header from jsdelvir (free CDN)
   ;; See here for instructions: https://www.jsdelivr.com/?docs=gh
   ;;
@@ -14,8 +15,14 @@
   ;; the file has the correct header.
   ;;
   ;; NOTE: This should be updated to track the dluhc-integration branch
-  ["https://cdn.jsdelivr.net/gh/Swirrl/datahost-prototypes@1282114/datahost-ld-openapi/resources/jsonld-context.json"
-   {"@base" (su/rdf-base-uri system-uris)}])
+   ["https://cdn.jsdelivr.net/gh/Swirrl/datahost-prototypes@1282114/datahost-ld-openapi/resources/jsonld-context.json"
+    {"@base" (su/rdf-base-uri system-uris)}]
+   )
+  ([system-uris series-slug]
+   ["https://cdn.jsdelivr.net/gh/Swirrl/datahost-prototypes@1282114/datahost-ld-openapi/resources/jsonld-context.json"
+    {"@base" (su/rdf-base-uri system-uris)
+     "@dh:hasRelease" {"@context" {"@base" (su/release-uri-base system-uris series-slug)}}}])
+  )
 
 (defn ->json-document
   ^JsonDocument [edn]

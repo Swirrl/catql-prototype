@@ -63,7 +63,7 @@
                        (matcha/index-triples)
                        (triples->ld-resource))]
     (as-json-ld {:status 200
-                 :body (-> (json-ld/compact series (json-ld/context system-uris))
+                 :body (-> (json-ld/compact series (json-ld/context system-uris series-slug))
                            (.toString))})
     (errors/not-found-response request)))
 
