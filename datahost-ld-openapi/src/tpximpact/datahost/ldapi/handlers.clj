@@ -1,6 +1,8 @@
 (ns tpximpact.datahost.ldapi.handlers
   (:require
+   [clojure.string :as string]
    [clojure.tools.logging :as log]
+   [jsonista.core :as json]
    [grafter.matcha.alpha :as matcha]
    [ring.util.io :as ring-io]
    [tablecloth.api :as tc]
@@ -58,13 +60,46 @@
     :update 200
     :noop   200))
 
+(defn uri->id [uri]
+  (last (string/split (str uri) #"/")))
+
+(defn uri->context [uri]
+  (str (string/join "/" (butlast (string/split (str uri) #"/"))) "/"))
+
+(defn nested-ld-resource-collection [nest-on ld-resources]
+  (let [nestk (cmp/expand nest-on)
+        nestp #(contains? % nestk)
+        roots (filter nestp ld-resources)
+        nests (->> (remove nestp ld-resources)
+                   (group-by (keyword "@id")))]
+    (map (fn [root]
+           (let [id (get root nestk)]
+             (assoc root
+                    nestk (map #(let [at-id (get % (keyword "@id"))]
+                                  (assoc % (keyword "@id") (uri->id at-id)))
+                               (get nests id)))))
+         roots)))
+
+(defn add-base-url [base-url x]
+  (assoc x "@context" {"@base" base-url}))
+
+(defn update-releases [series]
+  (let [base-url (str "./" (series "@id") "/releases/")]
+    (update series
+            "dh:hasRelease"
+            (partial map (partial add-base-url base-url)))))
+
 (defn get-dataset-series [triplestore system-uris {{:keys [series-slug]} :path-params :as request}]
   (if-let [series (->> (db/get-dataset-series triplestore (su/dataset-series-uri system-uris series-slug))
                        (matcha/index-triples)
-                       (triples->ld-resource))]
-    (as-json-ld {:status 200
-                 :body (-> (json-ld/compact series (json-ld/context system-uris))
-                           (.toString))})
+                       (triples->ld-resource-collection))]
+    (let [[series'] (nested-ld-resource-collection :dh/hasRelease series)
+          json-str (-> (json-ld/compact series' (json-ld/context system-uris))
+                       (.toString))
+          response-body (-> (json/read-value json-str)
+                            (update-releases))]
+      (as-json-ld {:status 200
+                   :body response-body}))
     (errors/not-found-response request)))
 
 (defn put-dataset-series [clock triplestore system-uris {:keys [body-params] :as request}]
@@ -199,10 +234,13 @@
         series (->> (db/get-all-series triplestore)
                     (matcha/index-triples)
                     (triples->ld-resource-collection)
+                    (nested-ld-resource-collection :dh/hasRelease)
                     (sort-by #(get % issued-uri) #(compare %2 %1)))
-        response-body (-> (wrap-ld-collection-contents series)
-                          (json-ld/compact (json-ld/context system-uris))
-                          (.toString))]
+        json-str (-> (wrap-ld-collection-contents series)
+                     (json-ld/compact (json-ld/context system-uris))
+                     (.toString))
+        response-body (-> (json/read-value json-str)
+                          (update "contents" (partial map update-releases)))]
     (as-json-ld {:status 200
                  :body response-body})))
 
@@ -380,6 +418,6 @@
                  "content-disposition" "attachment ; filename=change.csv"}
        :body (or (change->csv-stream change-store change) "")}
 
-      
+
       )
     (errors/not-found-response request)))

@@ -94,7 +94,10 @@
                                        [series-uri :dh/relatedLinks '?links]
                                        [series-uri :dh/contactName '?contactName]
                                        [series-uri :dh/contactEmail '?contactEmail]
-                                       [series-uri :dh/contactPhone '?contactPhone])
+                                       [series-uri :dh/contactPhone '?contactPhone]
+                                       [series-uri :dh/hasRelease '?release]
+                                       ['?release 'a :dh/Release]
+                                       ['?release :dcterms/title '?releaseTitle])
                       :where (conj bgps
                                    [:optional [[series-uri :dcterms/description '?description]]]
                                    [:optional [[series-uri :rdfs/comment '?comment]]]
@@ -106,7 +109,10 @@
                                    [:optional [[series-uri :dh/relatedLinks '?links]]]
                                    [:optional [[series-uri :dh/contactName '?contactName]]]
                                    [:optional [[series-uri :dh/contactEmail '?contactEmail]]]
-                                   [:optional [[series-uri :dh/contactPhone '?contactPhone]]])}]
+                                   [:optional [[series-uri :dh/contactPhone '?contactPhone]]]
+                                   [:optional [['?release :dcat/inSeries series-uri]
+                                               ['?release 'a :dh/Release]
+                                               ['?release :dcterms/title '?releaseTitle]]])}]
 
     (time! metrics/get-dataset-series
            (datastore/eager-query triplestore
@@ -164,8 +170,16 @@
                       ['?series :dcterms/modified '?modified]
                       ['?series :dcterms/issued '?issued]]]
             {:prefixes default-prefixes
-             :construct (conj bgps ['?series :dcterms/description '?description])
-             :where (conj bgps [:optional [['?series :dcterms/description '?description]]])
+             :construct (conj bgps
+                              ['?series :dcterms/description '?description]
+                              ['?series :dh/hasRelease '?release]
+                              ['?release 'a :dh/Release]
+                              ['?release :dcterms/title '?releaseTitle])
+             :where (conj bgps
+                          [:optional [['?series :dcterms/description '?description]]]
+                          [:optional [['?release :dcat/inSeries '?series]
+                                      ['?release 'a :dh/Release]
+                                      ['?release :dcterms/title '?releaseTitle]]])
              :order-by '[(asc ?issued)]})]
     (time! metrics/get-all-series
      (datastore/eager-query triplestore

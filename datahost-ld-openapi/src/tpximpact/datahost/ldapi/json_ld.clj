@@ -15,7 +15,8 @@
   ;;
   ;; NOTE: This should be updated to track the dluhc-integration branch
   ["https://cdn.jsdelivr.net/gh/Swirrl/datahost-prototypes@1282114/datahost-ld-openapi/resources/jsonld-context.json"
-   {"@base" (su/rdf-base-uri system-uris)}])
+   {"@base" (su/rdf-base-uri system-uris)
+    "dh:hasRelease" {"@container" "@set" "@id" "dh:hasRelease"}}])
 
 (defn ->json-document
   ^JsonDocument [edn]
@@ -31,6 +32,9 @@
   [json-ld context]
   (-> (->json-document json-ld)
       (JsonLd/compact (->json-document context))
+      (.base (get-in context [1 "@base"]))
+      ;; TODO: get base url in a way that's not dependant on the order and shape
+      ;; of the context
       (.compactArrays true)
       (.compactToRelative true)
       (.get)))
